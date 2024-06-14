@@ -12,7 +12,7 @@ sys_exit(void)
   int n;
   argint(0, &n);
   exit(n);
-  return 0;  // not reached
+  return 0; // not reached
 }
 
 uint64
@@ -43,7 +43,7 @@ sys_sbrk(void)
 
   argint(0, &n);
   addr = myproc()->sz;
-  if(growproc(n) < 0)
+  if (growproc(n) < 0)
     return -1;
   return addr;
 }
@@ -57,8 +57,10 @@ sys_sleep(void)
   argint(0, &n);
   acquire(&tickslock);
   ticks0 = ticks;
-  while(ticks - ticks0 < n){
-    if(killed(myproc())){
+  while (ticks - ticks0 < n)
+  {
+    if (killed(myproc()))
+    {
       release(&tickslock);
       return -1;
     }
@@ -88,4 +90,37 @@ sys_uptime(void)
   xticks = ticks;
   release(&tickslock);
   return xticks;
+}
+
+// Channel
+
+uint64 sys_channel_create()
+{
+  return channel_create();
+}
+
+uint64 sys_channel_put()
+{
+  int cd;
+  int data;
+  argint(0, &cd);
+  argint(1, &data);
+  return channel_put(cd, data);
+}
+
+uint64 sys_channel_take()
+{
+  int cd;
+  uint64 data64;
+  argint(0, &cd);
+  argaddr(1, &data64);
+  int *data = (int *)data64;
+  return channel_take(cd, data);
+}
+
+uint64 sys_channel_destroy()
+{
+  int cd;
+  argint(0, &cd);
+  return channel_destroy(cd);
 }
