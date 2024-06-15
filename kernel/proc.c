@@ -855,6 +855,7 @@ uint64 channel_take(int cd, int *data)
   if (copyout(p->pagetable, (uint64)data, (char *)chan.data, sizeof(*(chan.data))) < 0)
   {
     printf("copyout failed\n");
+    releasesleep(chan.lk);
     return -1;
   }
 
@@ -882,8 +883,8 @@ uint64 channel_destroy(int cd)
 
   if (!chan.alive)
   {
-    return -1;
     release(&channels_lock);
+    return -1;
   }
 
   wakeup(&(chan.lk->lk));
