@@ -881,7 +881,10 @@ uint64 channel_destroy(int cd)
   struct channel chan = channels[cd];
 
   if (!chan.alive)
+  {
     return -1;
+    release(&channels_lock);
+  }
 
   wakeup(&(chan.lk->lk));
 
