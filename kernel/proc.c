@@ -741,11 +741,13 @@ uint64 channel_create()
   chan.cd = -1;
   chan.data = kalloc();
 
-  if (sl == 0)
+  if (chan.data == 0)
   {
     printf("Could not allocate memory for channel data\n");
     return -1;
   }
+
+  *chan.data = 0;
 
   chan.alive = 1;
 
@@ -786,7 +788,7 @@ uint64 channel_put(int cd, int data)
 
   acquiresleep(chan.lk);
 
-  if (!chan.alive && *(chan.data) != 0)
+  if (!chan.alive || *(chan.data) != 0)
   {
     releasesleep(chan.lk);
     return -1;

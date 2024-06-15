@@ -16,18 +16,19 @@ int main(int argc, char *argv[])
         if (channel_put(cd, 42) < 0)
         {
             printf("Failed to put data in channel\n");
-            exit(1);
         }
 
-        sleep(10);
+        // sleep(20);
 
         printf("5");
         if (channel_put(cd, 43) < 0)
         {
             printf("Failed to put data in channel\n");
-            exit(1);
         } // Sleeps until cleared
         // Handle error
+
+        // sleep(20);
+
         if (channel_destroy(cd) < 0)
         {
             printf("Failed to destroy channel\n");
@@ -40,28 +41,27 @@ int main(int argc, char *argv[])
     else
     {
         int data;
-        sleep(10);
+        sleep(20);
         printf("1a");
         if (channel_take(cd, &data) < 0)
         { // 42
             printf("Failed to take data from channel\n");
-            exit(1);
         }
 
         printf("Data:%d\n ", data);
 
-        if (channel_take(cd, &data))
+        if (channel_take(cd, &data) < 0)
         {
             printf("Failed to take data from channel\n");
-            exit(1);
         } // 43
         // Handle error
 
+        // sleep(10);
+
         printf("Data:%d\n ", data);
-        if (channel_take(cd, &data))
+        if (channel_take(cd, &data) < 0)
         {
             printf("Failed to take data from channel\n");
-            exit(1);
         }
 
         printf("Data:%d\n ", data);
@@ -70,3 +70,5 @@ int main(int argc, char *argv[])
     }
     exit(0);
 }
+
+// Tested: WWRRRD, WWDRRR, WRRWRD, WRRRWD
