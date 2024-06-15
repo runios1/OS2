@@ -18,7 +18,7 @@ int main(int argc, char *argv[])
             printf("Failed to put data in channel\n");
         }
 
-        // sleep(20);
+        sleep(20);
 
         printf("5");
         if (channel_put(cd, 43) < 0)

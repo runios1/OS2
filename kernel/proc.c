@@ -790,10 +790,13 @@ uint64 channel_create()
 
 uint64 channel_put(int cd, int data)
 {
+  acquire(&channels_lock);
   if (cd < 0 || cd >= curChannelsDescriptor)
   {
+    release(&channels_lock);
     return -1;
   }
+  release(&channels_lock);
 
   struct channel chan = channels[cd];
 
@@ -821,10 +824,14 @@ uint64 channel_take(int cd, int *data)
 
   struct proc *p = myproc();
 
+  acquire(&channels_lock);
+
   if (cd < 0 || cd >= curChannelsDescriptor || !data)
   {
+    release(&channels_lock);
     return -1;
   }
+  release(&channels_lock);
 
   struct channel chan = channels[cd];
 
@@ -864,8 +871,12 @@ uint64 channel_take(int cd, int *data)
 
 uint64 channel_destroy(int cd)
 {
+  acquire(&channels_lock);
   if (cd < 0 || cd >= curChannelsDescriptor)
+  {
+    release(&channels_lock);
     return -1;
+  }
 
   struct channel chan = channels[cd];
 
@@ -880,6 +891,8 @@ uint64 channel_destroy(int cd)
   kfree(chan.data);
 
   curChannelsDescriptor = min(cd, curChannelsDescriptor);
+
+  release(&channels_lock);
 
   return 0;
 }
