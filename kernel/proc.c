@@ -392,6 +392,12 @@ void exit(int status)
     }
   }
 
+  for (int cd = 0; cd < NCHAN; cd++)
+  {
+    if (channels[cd].alive && channels[cd].creatorpid == p->pid)
+      channel_destroy(cd);
+  }
+
   begin_op();
   iput(p->cwd);
   end_op();
@@ -624,6 +630,12 @@ int kill(int pid)
 {
   struct proc *p;
 
+  for (int cd = 0; cd < NCHAN; cd++)
+  {
+    if (channels[cd].alive && channels[cd].creatorpid == pid)
+      channel_destroy(cd);
+  }
+
   for (p = proc; p < &proc[NPROC]; p++)
   {
     acquire(&p->lock);
@@ -750,6 +762,10 @@ uint64 channel_create()
   *chan.data = 0;
 
   chan.alive = 1;
+
+  struct proc *p = myproc();
+
+  chan.creatorpid = p->pid;
 
   acquire(&channels_lock);
 

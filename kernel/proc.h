@@ -126,4 +126,5 @@ struct channel
   struct sleeplock *lk;
   int *data;
   int alive;
+  int creatorpid;
 };
