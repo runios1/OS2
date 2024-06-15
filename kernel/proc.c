@@ -60,6 +60,7 @@ void chan_init(void)
     channels[i].cd = -1;
     channels[i].data = 0;
     channels[i].alive = 0;
+    channels[i].creatorpid = 0;
   }
   curChannelsDescriptor = 0;
   initlock(&channels_lock, "channels");
