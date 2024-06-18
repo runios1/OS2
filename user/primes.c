@@ -1,5 +1,6 @@
-#include "user.h"
-
+#include "kernel/types.h"
+#include "kernel/stat.h"
+#include "user/user.h"
 
 int checkPrime(int num)
 {
@@ -29,7 +30,9 @@ int checkerLogic(int checkerCD, int printerCD)
         }
         if (num != 0 && checkPrime(num))
         {
+           // printf("BEFORE: stuck at checkerLogic\n");
             while (channel_put(printerCD, num) == -1);
+           // printf("AFTER: stuck at checkerLogic\n");
         }
     }
     return 0;
@@ -42,6 +45,7 @@ int generatorLogic(int checkerCD)
     while (1)
     {
         if (channel_put(checkerCD, num) == 0){ // What if someone opens this channel again before we notice?
+           // printf("stuck at generatorLogic\n");
             num++;
         }
         else if(getIsAlive(checkerCD) == 0){
@@ -75,8 +79,8 @@ int printerLogic(int printerCD)
 int main(int argc, char *argv[])
 {
     int nCheckers = 3;
-    if (argc > 0)
-        nCheckers = atoi(argv[0]);
+    if (argc > 1)
+        nCheckers = atoi(argv[1]);
     while(1){
         int checkerCD = channel_create();
         int printerCD = channel_create();
@@ -94,9 +98,10 @@ int main(int argc, char *argv[])
             printf("PID: %d\n", generatorPID);
             exit(status);
         }
-
+        printf("nCheckers = %d", nCheckers);
         for (int i = 0; i < nCheckers; i++)
         {
+            printf("checker = %d", i);
             int checkerPID = fork();
             if (checkerPID == -1)
             {
@@ -105,6 +110,7 @@ int main(int argc, char *argv[])
             }
             else if (checkerPID == 0)
             { // Checker process
+                //printf("Don't worry all good\n");
                 int status = checkerLogic(checkerCD, printerCD);
                 printf("PID: %d\n", checkerPID);
                 exit(status);

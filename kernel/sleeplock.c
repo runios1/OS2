@@ -19,8 +19,8 @@ void initsleeplock(struct sleeplock *lk, char *name)
 
 void acquiresleep(struct sleeplock *lk)
 {
-  if (lk->name[0] == 'c')
-    printf("Got lock of %s\n", lk->name);
+//  if (lk->name[0] == 'c')
+//     printf("Got lock of %s\n", lk->name);
 
   acquire(&lk->lk);
   while (lk->locked)

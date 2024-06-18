@@ -814,7 +814,7 @@ uint64 channel_put(int cd, int data)
     return -1;
   }
   *(chan.data) = data;
-  printf("Put data: %d\n New chan data: %d", data, *(chan.data));
+  //printf("Put data: %d\n New chan data: %d", data, *(chan.data));
   releasesleep(chan.lk);
 
   return 0;
@@ -849,9 +849,9 @@ uint64 channel_take(int cd, int *data)
     return -1;
   }
 
-  printf("Channel data before copyout: %d\n", *(chan.data));
+  //printf("Channel data before copyout: %d\n", *(chan.data));
 
-  printf("The data pointer points to: %p\n Trying to write: %d bytes\n", chan.data, sizeof(*(chan.data)));
+  //printf("The data pointer points to: %p\n Trying to write: %d bytes\n", chan.data, sizeof(*(chan.data)));
 
   if (copyout(p->pagetable, (uint64)data, (char *)chan.data, sizeof(*(chan.data))) < 0)
   {
@@ -860,9 +860,9 @@ uint64 channel_take(int cd, int *data)
     return -1;
   }
 
-  printf("data address: %p\n", data);
+  //printf("data address: %p\n", data);
 
-  printf("Channel data after copyout: %d\n", *(chan.data));
+  //printf("Channel data after copyout: %d\n", *(chan.data));
 
   *(chan.data) = 0;
 
