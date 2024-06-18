@@ -901,3 +901,7 @@ uint64 channel_destroy(int cd)
 
   return 0;
 }
+
+uint64 getIsAlive(int cd){
+  return channels[cd].alive;
+}

@@ -111,6 +111,7 @@ uint64 channel_create();
 uint64 channel_put(int cd, int data);
 uint64 channel_take(int cd, int *data);
 uint64 channel_destroy(int cd);
+uint64 getIsAlive(int cd);
 
 // swtch.S
 void swtch(struct context *, struct context *);

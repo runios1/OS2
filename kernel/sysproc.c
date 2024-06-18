@@ -124,3 +124,9 @@ uint64 sys_channel_destroy()
   argint(0, &cd);
   return channel_destroy(cd);
 }
+
+uint64 sys_getIsAlive(){
+  int cd;
+  argint(0, &cd);
+  return getIsAlive(cd);
+}

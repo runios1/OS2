@@ -1,60 +1,5 @@
 #include "user.h"
 
-int main(int argc, char *argv[])
-{
-    int nCheckers = 3;
-    if (argc > 0)
-        nCheckers = atoi(argv[0]);
-
-    int checkerCD = channel_create();
-    int printerCD = channel_create();
-
-    int generatorPID = fork();
-
-    if (generatorPID == -1)
-    {
-        printf("Error in generator fork\n");
-        exit(1);
-    }
-    else if (generatorPID == 0)
-    { // Generator process
-        int status = generatorLogic(checkerCD);
-        exit(status);
-    }
-
-    for (int i = 0; i < nCheckers; i++)
-    {
-        int checkerPID = fork();
-        if (checkerPID == -1)
-        {
-            printf("Error in checker %d fork\n", i);
-            exit(1);
-        }
-        else if (checkerPID == 0)
-        { // Checker process
-            int status = checkerLogic(checkerCD, printerCD);
-            exit(status);
-        }
-    }
-
-    int printerPID = fork();
-    if (printerPID == -1)
-    {
-        printf("Error in printer fork\n");
-        exit(1);
-    }
-    else if (printerPID == 0)
-    { // Printer process
-        int status = printerLogic(printerCD);
-        exit(status);
-    }
-
-    while (wait(0) > 0)
-    {
-    }
-
-    return 0;
-}
 
 int checkPrime(int num)
 {
@@ -72,6 +17,11 @@ int checkerLogic(int checkerCD, int printerCD)
     int num = 0;
     while (1)
     {
+        if(!getIsAlive(printerCD))
+        {
+            channel_destroy(checkerCD);
+            return 0;
+        }
         if (channel_take(checkerCD, &num) == -1)
         {
             printf("channel_take on checker chan failed\n");
@@ -79,11 +29,7 @@ int checkerLogic(int checkerCD, int printerCD)
         }
         if (num != 0 && checkPrime(num))
         {
-            if (channel_put(printerCD, num) == -1)
-            {
-                channel_destroy(checkerCD);
-                return 0;
-            }
+            while (channel_put(printerCD, num) == -1);
         }
     }
     return 0;
@@ -92,11 +38,15 @@ int checkerLogic(int checkerCD, int printerCD)
 int generatorLogic(int checkerCD)
 {
     int num = 2;
+
     while (1)
     {
-        if (channel_put(checkerCD, num) == -1) // What if someone opens this channel again before we notice?
+        if (channel_put(checkerCD, num) == 0){ // What if someone opens this channel again before we notice?
+            num++;
+        }
+        else if(getIsAlive(checkerCD) == 0){
             return 0;
-        num++;
+        }
     }
     return 0;
 }
@@ -119,5 +69,69 @@ int printerLogic(int printerCD)
         }
     }
     channel_destroy(printerCD);
+    return 0;
+}
+
+int main(int argc, char *argv[])
+{
+    int nCheckers = 3;
+    if (argc > 0)
+        nCheckers = atoi(argv[0]);
+    while(1){
+        int checkerCD = channel_create();
+        int printerCD = channel_create();
+
+        int generatorPID = fork();
+
+        if (generatorPID == -1)
+        {
+            printf("Error in generator fork\n");
+            exit(1);
+        }
+        else if (generatorPID == 0)
+        { // Generator process
+            int status = generatorLogic(checkerCD);
+            printf("PID: %d\n", generatorPID);
+            exit(status);
+        }
+
+        for (int i = 0; i < nCheckers; i++)
+        {
+            int checkerPID = fork();
+            if (checkerPID == -1)
+            {
+                printf("Error in checker %d fork\n", i);
+                exit(1);
+            }
+            else if (checkerPID == 0)
+            { // Checker process
+                int status = checkerLogic(checkerCD, printerCD);
+                printf("PID: %d\n", checkerPID);
+                exit(status);
+            }
+        }
+
+        int printerPID = fork();
+        if (printerPID == -1)
+        {
+            printf("Error in printer fork\n");
+            exit(1);
+        }
+        else if (printerPID == 0)
+        { // Printer process
+            int status = printerLogic(printerCD);
+            printf("PID: %d\n", printerPID);
+            exit(status);
+        }
+
+        while (wait(0) > 0);
+        char buf[255];
+        printf("Start the system again?");
+        read(0, buf, sizeof(buf));
+        if(buf[0] == 'n'){
+            break;
+        }
+    }
+
     return 0;
 }
