@@ -799,23 +799,23 @@ uint64 channel_put(int cd, int data)
   }
   release(&channels_lock);
 
-  struct channel chan = channels[cd];
+  //struct channel chan = channels[cd];
 
-  if (!chan.alive)
+  if (!channels[cd].alive)
   {
     return -1;
   }
 
-  acquiresleep(chan.lk);
+  acquiresleep(channels[cd].lk);
 
-  if (!chan.alive || *(chan.data) != 0)
+  if (!channels[cd].alive || *(channels[cd].data) != 0)
   {
-    releasesleep(chan.lk);
+    releasesleep(channels[cd].lk);
     return -1;
   }
-  *(chan.data) = data;
+  *(channels[cd].data) = data;
   //printf("Put data: %d\n New chan data: %d", data, *(chan.data));
-  releasesleep(chan.lk);
+  releasesleep(channels[cd].lk);
 
   return 0;
 }
@@ -834,18 +834,18 @@ uint64 channel_take(int cd, int *data)
   }
   release(&channels_lock);
 
-  struct channel chan = channels[cd];
+  //struct channel chan = channels[cd];
 
-  if (!chan.alive)
+  if (!channels[cd].alive)
   {
     return -1;
   }
 
-  acquiresleep(chan.lk);
+  acquiresleep(channels[cd].lk);
 
-  if (!chan.alive)
+  if (!channels[cd].alive)
   {
-    releasesleep(chan.lk);
+    releasesleep(channels[cd].lk);
     return -1;
   }
 
@@ -853,10 +853,10 @@ uint64 channel_take(int cd, int *data)
 
   //printf("The data pointer points to: %p\n Trying to write: %d bytes\n", chan.data, sizeof(*(chan.data)));
 
-  if (copyout(p->pagetable, (uint64)data, (char *)chan.data, sizeof(*(chan.data))) < 0)
+  if (copyout(p->pagetable, (uint64)data, (char *)channels[cd].data, sizeof(*(channels[cd].data))) < 0)
   {
     printf("copyout failed\n");
-    releasesleep(chan.lk);
+    releasesleep(channels[cd].lk);
     return -1;
   }
 
@@ -864,9 +864,9 @@ uint64 channel_take(int cd, int *data)
 
   //printf("Channel data after copyout: %d\n", *(chan.data));
 
-  *(chan.data) = 0;
+  *(channels[cd].data) = 0;
 
-  releasesleep(chan.lk);
+  releasesleep(channels[cd].lk);
 
   return 0;
 }
@@ -880,25 +880,24 @@ uint64 channel_destroy(int cd)
     return -1;
   }
 
-  struct channel chan = channels[cd];
-
-  if (!chan.alive)
+  if (!channels[cd].alive)
   {
     release(&channels_lock);
     return -1;
   }
 
-  wakeup(&(chan.lk->lk));
+  wakeup(&(channels[cd].lk->lk));
 
-  chan.alive = 0;
+  channels[cd].alive = 0;
 
-  kfree(chan.lk);
-  kfree(chan.data);
+  kfree(channels[cd].lk);
+  kfree(channels[cd].data);
 
   curChannelsDescriptor = min(cd, curChannelsDescriptor);
 
   release(&channels_lock);
-
+  //printf("channels[cd].alive = %d\n",  channels[cd].alive);
+  //printf("cd = %d\n",  cd);
   return 0;
 }
 

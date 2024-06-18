@@ -9,7 +9,7 @@ int checkPrime(int num)
         if (num % i == 0)
             return 0;
     }
-
+    
     return 1;
 }
 
@@ -18,6 +18,7 @@ int checkerLogic(int checkerCD, int printerCD)
     int num = 0;
     while (1)
     {
+        //printf("printerCD isAlive? = %d\n", getIsAlive(printerCD));
         if(!getIsAlive(printerCD))
         {
             channel_destroy(checkerCD);
@@ -26,7 +27,7 @@ int checkerLogic(int checkerCD, int printerCD)
         if (channel_take(checkerCD, &num) == -1)
         {
             printf("channel_take on checker chan failed\n");
-            return -1;
+            return 1;
         }
         if (num != 0 && checkPrime(num))
         {
@@ -64,7 +65,7 @@ int printerLogic(int printerCD)
         if (channel_take(printerCD, &num) == -1)
         {
             printf("channel_take on printer chan failed\n");
-            return -1;
+            return 1;
         }
         if (num != 0)
         {
@@ -73,6 +74,7 @@ int printerLogic(int printerCD)
         }
     }
     channel_destroy(printerCD);
+    printf("%d\n", printerCD);
     return 0;
 }
 
@@ -95,13 +97,13 @@ int main(int argc, char *argv[])
         else if (generatorPID == 0)
         { // Generator process
             int status = generatorLogic(checkerCD);
-            printf("PID: %d\n", generatorPID);
+            printf("generatorPID: %d\n", generatorPID);
             exit(status);
         }
-        printf("nCheckers = %d", nCheckers);
+        printf("nCheckers = %d\n", nCheckers);
         for (int i = 0; i < nCheckers; i++)
         {
-            printf("checker = %d", i);
+            printf("checker = %d\n", i);
             int checkerPID = fork();
             if (checkerPID == -1)
             {
@@ -110,9 +112,9 @@ int main(int argc, char *argv[])
             }
             else if (checkerPID == 0)
             { // Checker process
-                //printf("Don't worry all good\n");
                 int status = checkerLogic(checkerCD, printerCD);
-                printf("PID: %d\n", checkerPID);
+               // printf("Don't worry all good\n");
+                printf("checkerPID: %d\n", checkerPID);
                 exit(status);
             }
         }
@@ -126,7 +128,7 @@ int main(int argc, char *argv[])
         else if (printerPID == 0)
         { // Printer process
             int status = printerLogic(printerCD);
-            printf("PID: %d\n", printerPID);
+            printf("printerPID: %d\n", printerPID);
             exit(status);
         }
 
