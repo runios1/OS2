@@ -11,7 +11,7 @@
 #define min(a, b) ((a) < (b) ? (a) : (b))
 
 struct channel channels[NCHAN];
-int curChannelsDescriptor;
+int curChannelsDescriptor = 0;
 struct spinlock channels_lock;
 
 struct cpu cpus[NCPU];
@@ -782,16 +782,22 @@ uint64 channel_create()
       }
     }
     channels[curChannelsDescriptor] = chan;
-    chan.cd = curChannelsDescriptor++;
+    channels[curChannelsDescriptor].cd = curChannelsDescriptor;
+    curChannelsDescriptor++;
   }
   release(&channels_lock);
 
-  return chan.cd;
+  return channels[curChannelsDescriptor].cd;
 }
 
 uint64 channel_put(int cd, int data)
 {
+
+  if(!channels[cd].alive)
+    return -1;
+  
   acquire(&channels_lock);
+
   if (cd < 0 || cd >= curChannelsDescriptor)
   {
     release(&channels_lock);
@@ -822,6 +828,9 @@ uint64 channel_put(int cd, int data)
 
 uint64 channel_take(int cd, int *data)
 {
+
+  if(!channels[cd].alive)
+    return -1;
 
   struct proc *p = myproc();
 
