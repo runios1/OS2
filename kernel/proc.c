@@ -393,11 +393,15 @@ void exit(int status)
     }
   }
 
+  acquire(&channels_lock);
+
   for (int cd = 0; cd < NCHAN; cd++)
   {
     if (channels[cd].alive && channels[cd].creatorpid == p->pid)
       channel_destroy(cd);
   }
+
+  release(&channels_lock);
 
   begin_op();
   iput(p->cwd);
@@ -631,11 +635,15 @@ int kill(int pid)
 {
   struct proc *p;
 
+  acquire(&channels_lock);
+
   for (int cd = 0; cd < NCHAN; cd++)
   {
     if (channels[cd].alive && channels[cd].creatorpid == pid)
       channel_destroy(cd);
   }
+
+  release(&channels_lock);
 
   for (p = proc; p < &proc[NPROC]; p++)
   {
@@ -793,9 +801,9 @@ uint64 channel_create()
 uint64 channel_put(int cd, int data)
 {
 
-  if(!channels[cd].alive)
+  if (!channels[cd].alive)
     return -1;
-  
+
   acquire(&channels_lock);
 
   if (cd < 0 || cd >= curChannelsDescriptor)
@@ -805,7 +813,7 @@ uint64 channel_put(int cd, int data)
   }
   release(&channels_lock);
 
-  //struct channel chan = channels[cd];
+  // struct channel chan = channels[cd];
 
   if (!channels[cd].alive)
   {
@@ -820,7 +828,7 @@ uint64 channel_put(int cd, int data)
     return -1;
   }
   *(channels[cd].data) = data;
-  //printf("Put data: %d\n New chan data: %d", data, *(chan.data));
+  // printf("Put data: %d\n New chan data: %d", data, *(chan.data));
   releasesleep(channels[cd].lk);
 
   return 0;
@@ -829,7 +837,7 @@ uint64 channel_put(int cd, int data)
 uint64 channel_take(int cd, int *data)
 {
 
-  if(!channels[cd].alive)
+  if (!channels[cd].alive)
     return -1;
 
   struct proc *p = myproc();
@@ -843,7 +851,7 @@ uint64 channel_take(int cd, int *data)
   }
   release(&channels_lock);
 
-  //struct channel chan = channels[cd];
+  // struct channel chan = channels[cd];
 
   if (!channels[cd].alive)
   {
@@ -858,9 +866,9 @@ uint64 channel_take(int cd, int *data)
     return -1;
   }
 
-  //printf("Channel data before copyout: %d\n", *(chan.data));
+  // printf("Channel data before copyout: %d\n", *(chan.data));
 
-  //printf("The data pointer points to: %p\n Trying to write: %d bytes\n", chan.data, sizeof(*(chan.data)));
+  // printf("The data pointer points to: %p\n Trying to write: %d bytes\n", chan.data, sizeof(*(chan.data)));
 
   if (copyout(p->pagetable, (uint64)data, (char *)channels[cd].data, sizeof(*(channels[cd].data))) < 0)
   {
@@ -869,9 +877,9 @@ uint64 channel_take(int cd, int *data)
     return -1;
   }
 
-  //printf("data address: %p\n", data);
+  // printf("data address: %p\n", data);
 
-  //printf("Channel data after copyout: %d\n", *(chan.data));
+  // printf("Channel data after copyout: %d\n", *(chan.data));
 
   *(channels[cd].data) = 0;
 
@@ -905,11 +913,12 @@ uint64 channel_destroy(int cd)
   curChannelsDescriptor = min(cd, curChannelsDescriptor);
 
   release(&channels_lock);
-  //printf("channels[cd].alive = %d\n",  channels[cd].alive);
-  //printf("cd = %d\n",  cd);
+  // printf("channels[cd].alive = %d\n",  channels[cd].alive);
+  // printf("cd = %d\n",  cd);
   return 0;
 }
 
-uint64 getIsAlive(int cd){
+uint64 getIsAlive(int cd)
+{
   return channels[cd].alive;
 }
