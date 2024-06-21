@@ -903,12 +903,14 @@ uint64 channel_destroy(int cd)
     return -1;
   }
 
-  wakeup(&(channels[cd].lk->lk));
-
   channels[cd].alive = 0;
 
+  wakeup(&(channels[cd].lk->lk));
+
   kfree(channels[cd].lk);
+  channels[cd].lk = 0;
   kfree(channels[cd].data);
+  channels[cd].data = 0;
 
   curChannelsDescriptor = min(cd, curChannelsDescriptor);
 

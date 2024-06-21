@@ -21,17 +21,13 @@ int checkerLogic(int checkerCD, int printerCD)
     {
         if (!getIsAlive(printerCD))
         {
-            printf("printer chan destroyed detected\n");
             channel_destroy(checkerCD);
-
-            printf("checker chan destroyed\n");
             printf("Checker PID:%d\n", getpid());
             return 0;
         }
         if (channel_take(checkerCD, &num) == -1)
         {
             printf("channel_take on checker chan failed\n");
-            return 1;
         }
         if (num != 0 && checkPrime(num))
         {
