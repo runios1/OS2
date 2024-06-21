@@ -127,4 +127,5 @@ struct channel
   int *data;
   int alive;
   int creatorpid;
+  unsigned int lkReferenceCount;
 };

@@ -61,6 +61,7 @@ void chan_init(void)
     channels[i].data = 0;
     channels[i].alive = 0;
     channels[i].creatorpid = 0;
+    channels[i].lkReferenceCount = 0;
   }
   curChannelsDescriptor = 0;
   initlock(&channels_lock, "channels");
@@ -772,6 +773,8 @@ uint64 channel_create()
 
   chan.alive = 1;
 
+  chan.lkReferenceCount = 0;
+
   struct proc *p = myproc();
 
   chan.creatorpid = p->pid;
@@ -782,10 +785,12 @@ uint64 channel_create()
   {
     if (channels[curChannelsDescriptor].lk)
     {
+      channels[curChannelsDescriptor].lkReferenceCount++;
       acquiresleep(channels[curChannelsDescriptor].lk);
       while (channels[curChannelsDescriptor].alive)
       {
         releasesleep(channels[curChannelsDescriptor].lk);
+        channels[curChannelsDescriptor].lkReferenceCount--;
         curChannelsDescriptor++;
         if (curChannelsDescriptor == NCHAN)
         {
@@ -795,10 +800,13 @@ uint64 channel_create()
         }
         if (!channels[curChannelsDescriptor].lk)
           break;
+        channels[curChannelsDescriptor].lkReferenceCount++;
         acquiresleep(channels[curChannelsDescriptor].lk);
       }
-      if (channels[curChannelsDescriptor].lk)
+      if (channels[curChannelsDescriptor].lk){
         releasesleep(channels[curChannelsDescriptor].lk);
+        channels[curChannelsDescriptor].lkReferenceCount--;
+      }
     }
     channels[curChannelsDescriptor] = chan;
     channels[curChannelsDescriptor].cd = curChannelsDescriptor;
@@ -823,15 +831,18 @@ uint64 channel_put(int cd, int data)
   if (!channels[cd].lk)
     return -1;
 
+  channels[cd].lkReferenceCount++;
   acquiresleep(channels[cd].lk);
 
   if (!channels[cd].alive || *(channels[cd].data) != 0)
   {
     releasesleep(channels[cd].lk);
+    channels[cd].lkReferenceCount--;
     return -1;
   }
   *(channels[cd].data) = data;
   releasesleep(channels[cd].lk);
+  channels[cd].lkReferenceCount--;
 
   return 0;
 }
@@ -853,11 +864,13 @@ uint64 channel_take(int cd, int *data)
   if (!channels[cd].lk)
     return -1;
 
+  channels[cd].lkReferenceCount++;
   acquiresleep(channels[cd].lk);
 
   if (!channels[cd].alive)
   {
     releasesleep(channels[cd].lk);
+    channels[cd].lkReferenceCount--;
     return -1;
   }
 
@@ -869,6 +882,7 @@ uint64 channel_take(int cd, int *data)
   {
     printf("copyout failed\n");
     releasesleep(channels[cd].lk);
+    channels[cd].lkReferenceCount--;
     return -1;
   }
 
@@ -879,6 +893,7 @@ uint64 channel_take(int cd, int *data)
   *(channels[cd].data) = 0;
 
   releasesleep(channels[cd].lk);
+  channels[cd].lkReferenceCount--;
 
   return 0;
 }
@@ -895,6 +910,7 @@ uint64 channel_destroy(int cd)
   if (!channels[cd].lk)
     return -1;
 
+  channels[cd].lkReferenceCount++;
   acquiresleep(channels[cd].lk);
 
   if (!channels[cd].alive)
@@ -905,7 +921,13 @@ uint64 channel_destroy(int cd)
 
   channels[cd].alive = 0;
 
-  wakeup(&(channels[cd].lk->lk));
+  //wakeup(&(channels[cd].lk->lk));
+
+  releasesleep(channels[cd].lk);
+  printf("lkReferenceCount = %d\n", channels[cd].lkReferenceCount);
+  channels[cd].lkReferenceCount--;
+  printf("lkReferenceCount = %d\n", channels[cd].lkReferenceCount);
+  while(channels[cd].lkReferenceCount > 0);// printf("lkReferenceCount = %d\n", channels[cd].lkReferenceCount);
 
   kfree(channels[cd].lk);
   channels[cd].lk = 0;
@@ -924,8 +946,10 @@ uint64 getIsAlive(int cd)
 {
   if (!channels[cd].lk)
     return 0;
+  channels[cd].lkReferenceCount++;
   acquiresleep(channels[cd].lk);
   int output = channels[cd].alive;
   releasesleep(channels[cd].lk);
+  channels[cd].lkReferenceCount--;
   return output;
 }

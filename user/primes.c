@@ -49,7 +49,7 @@ int generatorLogic(int checkerCD)
         }
         else if (getIsAlive(checkerCD) == 0)
         {
-            printf("Generator PID:%d\n", getpid());
+            //printf("Generator PID:%d\n", getpid());
 
             return 0;
         }
@@ -71,11 +71,11 @@ int printerLogic(int printerCD)
         if (num != 0)
         {
             detected++;
-            printf("%d\n", num);
+            //printf("%d\n", num);
         }
     }
     channel_destroy(printerCD);
-    printf("Printer PID:%d\n", getpid());
+    //printf("Printer PID:%d\n", getpid());
 
     return 0;
 }
