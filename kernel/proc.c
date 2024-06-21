@@ -780,14 +780,25 @@ uint64 channel_create()
 
   if (curChannelsDescriptor < NCHAN)
   {
-    while (channels[curChannelsDescriptor].alive)
+    if (channels[curChannelsDescriptor].lk)
     {
-      curChannelsDescriptor++;
-      if (curChannelsDescriptor == NCHAN)
+      acquiresleep(channels[curChannelsDescriptor].lk);
+      while (channels[curChannelsDescriptor].alive)
       {
-        release(&channels_lock);
-        return -1;
+        releasesleep(channels[curChannelsDescriptor].lk);
+        curChannelsDescriptor++;
+        if (curChannelsDescriptor == NCHAN)
+        {
+          release(&channels_lock);
+          printf("Failed to find a slot for new channel\n");
+          return -1;
+        }
+        if (!channels[curChannelsDescriptor].lk)
+          break;
+        acquiresleep(channels[curChannelsDescriptor].lk);
       }
+      if (channels[curChannelsDescriptor].lk)
+        releasesleep(channels[curChannelsDescriptor].lk);
     }
     channels[curChannelsDescriptor] = chan;
     channels[curChannelsDescriptor].cd = curChannelsDescriptor;
@@ -795,15 +806,11 @@ uint64 channel_create()
   }
   release(&channels_lock);
 
-  return channels[curChannelsDescriptor].cd;
+  return channels[curChannelsDescriptor - 1].cd;
 }
 
 uint64 channel_put(int cd, int data)
 {
-
-  if (!channels[cd].alive)
-    return -1;
-
   acquire(&channels_lock);
 
   if (cd < 0 || cd >= curChannelsDescriptor)
@@ -813,12 +820,8 @@ uint64 channel_put(int cd, int data)
   }
   release(&channels_lock);
 
-  // struct channel chan = channels[cd];
-
-  if (!channels[cd].alive)
-  {
+  if (!channels[cd].lk)
     return -1;
-  }
 
   acquiresleep(channels[cd].lk);
 
@@ -828,7 +831,6 @@ uint64 channel_put(int cd, int data)
     return -1;
   }
   *(channels[cd].data) = data;
-  // printf("Put data: %d\n New chan data: %d", data, *(chan.data));
   releasesleep(channels[cd].lk);
 
   return 0;
@@ -836,27 +838,20 @@ uint64 channel_put(int cd, int data)
 
 uint64 channel_take(int cd, int *data)
 {
-
-  if (!channels[cd].alive)
-    return -1;
-
   struct proc *p = myproc();
 
   acquire(&channels_lock);
 
   if (cd < 0 || cd >= curChannelsDescriptor || !data)
   {
+    printf("Something very wrong happened cd = %d\n", cd);
     release(&channels_lock);
     return -1;
   }
   release(&channels_lock);
 
-  // struct channel chan = channels[cd];
-
-  if (!channels[cd].alive)
-  {
+  if (!channels[cd].lk)
     return -1;
-  }
 
   acquiresleep(channels[cd].lk);
 
@@ -897,6 +892,11 @@ uint64 channel_destroy(int cd)
     return -1;
   }
 
+  if (!channels[cd].lk)
+    return -1;
+
+  acquiresleep(channels[cd].lk);
+
   if (!channels[cd].alive)
   {
     release(&channels_lock);
@@ -920,5 +920,10 @@ uint64 channel_destroy(int cd)
 
 uint64 getIsAlive(int cd)
 {
-  return channels[cd].alive;
+  if (!channels[cd].lk)
+    return 0;
+  acquiresleep(channels[cd].lk);
+  int output = channels[cd].alive;
+  releasesleep(channels[cd].lk);
+  return output;
 }

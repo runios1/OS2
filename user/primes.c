@@ -1,6 +1,7 @@
 #include "kernel/types.h"
 #include "kernel/stat.h"
 #include "user/user.h"
+#define NPRIME 100
 
 int checkPrime(int num)
 {
@@ -9,7 +10,7 @@ int checkPrime(int num)
         if (num % i == 0)
             return 0;
     }
-    
+
     return 1;
 }
 
@@ -18,10 +19,13 @@ int checkerLogic(int checkerCD, int printerCD)
     int num = 0;
     while (1)
     {
-        //printf("printerCD isAlive? = %d\n", getIsAlive(printerCD));
-        if(!getIsAlive(printerCD))
+        if (!getIsAlive(printerCD))
         {
+            printf("printer chan destroyed detected\n");
             channel_destroy(checkerCD);
+
+            printf("checker chan destroyed\n");
+            printf("Checker PID:%d\n", getpid());
             return 0;
         }
         if (channel_take(checkerCD, &num) == -1)
@@ -31,9 +35,8 @@ int checkerLogic(int checkerCD, int printerCD)
         }
         if (num != 0 && checkPrime(num))
         {
-           // printf("BEFORE: stuck at checkerLogic\n");
-            while (channel_put(printerCD, num) == -1);
-           // printf("AFTER: stuck at checkerLogic\n");
+            while (channel_put(printerCD, num) == -1)
+                ;
         }
     }
     return 0;
@@ -42,14 +45,16 @@ int checkerLogic(int checkerCD, int printerCD)
 int generatorLogic(int checkerCD)
 {
     int num = 2;
-
     while (1)
     {
-        if (channel_put(checkerCD, num) == 0){ // What if someone opens this channel again before we notice?
-           // printf("stuck at generatorLogic\n");
+        if (channel_put(checkerCD, num) == 0)
+        { // What if someone opens this channel again before we notice?
             num++;
         }
-        else if(getIsAlive(checkerCD) == 0){
+        else if (getIsAlive(checkerCD) == 0)
+        {
+            printf("Generator PID:%d\n", getpid());
+
             return 0;
         }
     }
@@ -60,7 +65,7 @@ int printerLogic(int printerCD)
 {
     int detected = 0;
     int num;
-    while (detected < 100)
+    while (detected < NPRIME)
     {
         if (channel_take(printerCD, &num) == -1)
         {
@@ -74,7 +79,8 @@ int printerLogic(int printerCD)
         }
     }
     channel_destroy(printerCD);
-    printf("%d\n", printerCD);
+    printf("Printer PID:%d\n", getpid());
+
     return 0;
 }
 
@@ -83,7 +89,8 @@ int main(int argc, char *argv[])
     int nCheckers = 3;
     if (argc > 1)
         nCheckers = atoi(argv[1]);
-    while(1){
+    while (1)
+    {
         int checkerCD = channel_create();
         int printerCD = channel_create();
 
@@ -97,13 +104,10 @@ int main(int argc, char *argv[])
         else if (generatorPID == 0)
         { // Generator process
             int status = generatorLogic(checkerCD);
-            printf("generatorPID: %d\n", generatorPID);
             exit(status);
         }
-        printf("nCheckers = %d\n", nCheckers);
         for (int i = 0; i < nCheckers; i++)
         {
-            printf("checker = %d\n", i);
             int checkerPID = fork();
             if (checkerPID == -1)
             {
@@ -113,8 +117,6 @@ int main(int argc, char *argv[])
             else if (checkerPID == 0)
             { // Checker process
                 int status = checkerLogic(checkerCD, printerCD);
-               // printf("Don't worry all good\n");
-                printf("checkerPID: %d\n", checkerPID);
                 exit(status);
             }
         }
@@ -128,15 +130,16 @@ int main(int argc, char *argv[])
         else if (printerPID == 0)
         { // Printer process
             int status = printerLogic(printerCD);
-            printf("printerPID: %d\n", printerPID);
             exit(status);
         }
 
-        while (wait(0) > 0);
+        while (wait(0) > 0)
+            ;
         char buf[255];
         printf("Start the system again?");
         read(0, buf, sizeof(buf));
-        if(buf[0] == 'n'){
+        if (buf[0] == 'n')
+        {
             break;
         }
     }
