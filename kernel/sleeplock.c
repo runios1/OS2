@@ -15,6 +15,7 @@ void initsleeplock(struct sleeplock *lk, char *name)
   lk->name = name;
   lk->locked = 0;
   lk->pid = 0;
+  lk->isDestroyed = 0;
 }
 
 void acquiresleep(struct sleeplock *lk)
@@ -26,6 +27,10 @@ void acquiresleep(struct sleeplock *lk)
   while (lk->locked)
   {
     sleep(lk, &lk->lk);
+    if(lk->isDestroyed){
+      release(&lk->lk);
+      return;
+    }
   }
   lk->locked = 1;
   lk->pid = myproc()->pid;
@@ -49,4 +54,11 @@ int holdingsleep(struct sleeplock *lk)
   r = lk->locked && (lk->pid == myproc()->pid);
   release(&lk->lk);
   return r;
+}
+
+void destroySleep(struct sleeplock *lk){
+  acquire(&lk->lk);
+  lk->isDestroyed = 1;
+  release(&lk->lk);
+  releasesleep(lk);
 }
