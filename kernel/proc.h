@@ -123,8 +123,9 @@ struct proc
 struct channel
 {
   int cd;
-  struct sleeplock *lk;
+  struct spinlock lk;
   int *data;
   int alive;
+  int isFree;
   int creatorpid;
 };

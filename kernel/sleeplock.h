@@ -6,7 +6,5 @@ struct sleeplock {
   // For debugging:
   char *name;        // Name of lock.
   int pid;           // Process holding lock
-
-  int isDestroyed;
 };
 

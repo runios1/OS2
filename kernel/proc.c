@@ -56,11 +56,12 @@ void chan_init(void)
 {
   for (int i = 0; i < NCHAN; i++)
   {
-    channels[i].lk = 0;
+    initlock(&channels[i].lk, "lk");
     channels[i].cd = -1;
     channels[i].data = 0;
     channels[i].alive = 0;
     channels[i].creatorpid = 0;
+    channels[i].isFree = 1;
   }
   curChannelsDescriptor = 0;
   initlock(&channels_lock, "channels");
@@ -748,17 +749,7 @@ void procdump(void)
 
 uint64 channel_create()
 {
-  struct sleeplock *sl = kalloc();
-
-  if (sl == 0)
-  {
-    printf("Could not allocate memory for channel sleep lock\n");
-    return -1;
-  }
-
-  initsleeplock(sl, "chan");
   struct channel chan;
-  chan.lk = sl;
   chan.cd = -1;
   chan.data = kalloc();
 
@@ -780,12 +771,10 @@ uint64 channel_create()
 
   if (curChannelsDescriptor < NCHAN)
   {
-    if (channels[curChannelsDescriptor].lk)
-    {
-      acquiresleep(channels[curChannelsDescriptor].lk);
+      acquire(&channels[curChannelsDescriptor].lk);
       while (channels[curChannelsDescriptor].alive)
       {
-        releasesleep(channels[curChannelsDescriptor].lk);
+        release(&channels[curChannelsDescriptor].lk);
         curChannelsDescriptor++;
         if (curChannelsDescriptor == NCHAN)
         {
@@ -793,14 +782,10 @@ uint64 channel_create()
           printf("Failed to find a slot for new channel\n");
           return -1;
         }
-        if (!channels[curChannelsDescriptor].lk)
-          break;
-        acquiresleep(channels[curChannelsDescriptor].lk);
+        acquire(&channels[curChannelsDescriptor].lk);
       }
-      if (channels[curChannelsDescriptor].lk){
-        releasesleep(channels[curChannelsDescriptor].lk);
-      }
-    }
+      release(&channels[curChannelsDescriptor].lk);
+
     channels[curChannelsDescriptor] = chan;
     channels[curChannelsDescriptor].cd = curChannelsDescriptor;
     curChannelsDescriptor++;
@@ -821,18 +806,27 @@ uint64 channel_put(int cd, int data)
   }
   release(&channels_lock);
 
-  if (!channels[cd].lk)
-    return -1;
+  acquire(&channels[cd].lk);
 
-  acquiresleep(channels[cd].lk);
-
-  if (!channels[cd].alive || *(channels[cd].data) != 0)
+  if (!channels[cd].alive)
   {
-    releasesleep(channels[cd].lk);
+    release(&channels[cd].lk);
     return -1;
   }
+  
+  while(*(channels[cd].data) != 0){
+    sleep(&channels[cd],&channels[cd].lk);
+  }
+  
+  if (!channels[cd].alive)
+  {
+    release(&channels[cd].lk);
+    return -1;
+  }
+
   *(channels[cd].data) = data;
-  releasesleep(channels[cd].lk);
+  wakeup(&channels[cd]);
+  release(&channels[cd].lk);
 
   return 0;
 }
@@ -845,20 +839,27 @@ uint64 channel_take(int cd, int *data)
 
   if (cd < 0 || cd >= curChannelsDescriptor || !data)
   {
-    printf("Something very wrong happened cd = %d\n", cd);
+    //printf("Something very wrong happened cd = %d\n", cd);
     release(&channels_lock);
     return -1;
   }
   release(&channels_lock);
 
-  if (!channels[cd].lk)
-    return -1;
-
-  acquiresleep(channels[cd].lk);
+  acquire(&channels[cd].lk);
 
   if (!channels[cd].alive)
   {
-    releasesleep(channels[cd].lk);
+    release(&channels[cd].lk);
+    return -1;
+  }
+
+  while(*(channels[cd].data) == 0){
+    sleep(&channels[cd],&channels[cd].lk);
+  }
+
+  if (!channels[cd].alive)
+  {
+    release(&channels[cd].lk);
     return -1;
   }
 
@@ -869,7 +870,7 @@ uint64 channel_take(int cd, int *data)
   if (copyout(p->pagetable, (uint64)data, (char *)channels[cd].data, sizeof(*(channels[cd].data))) < 0)
   {
     printf("copyout failed\n");
-    releasesleep(channels[cd].lk);
+    release(&channels[cd].lk);
     return -1;
   }
 
@@ -878,8 +879,8 @@ uint64 channel_take(int cd, int *data)
   // printf("Channel data after copyout: %d\n", *(chan.data));
 
   *(channels[cd].data) = 0;
-
-  releasesleep(channels[cd].lk);
+  wakeup(&channels[cd]);
+  release(&channels[cd].lk);
 
   return 0;
 }
@@ -893,10 +894,7 @@ uint64 channel_destroy(int cd)
     return -1;
   }
 
-  if (!channels[cd].lk)
-    return -1;
-
-  acquiresleep(channels[cd].lk);
+  acquire(&channels[cd].lk);
 
   if (!channels[cd].alive)
   {
@@ -906,14 +904,10 @@ uint64 channel_destroy(int cd)
 
   channels[cd].alive = 0;
 
-  //wakeup(&(channels[cd].lk->lk));
+  wakeup(&channels[cd]);
 
-  //releasesleep(channels[cd].lk);
+  //release(channels[cd].lk);
 
-  destroySleep(channels[cd].lk);
-
-  kfree(channels[cd].lk);
-  channels[cd].lk = 0;
   kfree(channels[cd].data);
   channels[cd].data = 0;
 
@@ -927,10 +921,8 @@ uint64 channel_destroy(int cd)
 
 uint64 getIsAlive(int cd)
 {
-  if (!channels[cd].lk)
-    return 0;
-  acquiresleep(channels[cd].lk);
+  acquire(&channels[cd].lk);
   int output = channels[cd].alive;
-  releasesleep(channels[cd].lk);
+  release(&channels[cd].lk);
   return output;
 }
