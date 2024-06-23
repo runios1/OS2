@@ -771,20 +771,20 @@ uint64 channel_create()
 
   if (curChannelsDescriptor < NCHAN)
   {
-      acquire(&channels[curChannelsDescriptor].lk);
-      while (channels[curChannelsDescriptor].alive)
-      {
-        release(&channels[curChannelsDescriptor].lk);
-        curChannelsDescriptor++;
-        if (curChannelsDescriptor == NCHAN)
-        {
-          release(&channels_lock);
-          printf("Failed to find a slot for new channel\n");
-          return -1;
-        }
-        acquire(&channels[curChannelsDescriptor].lk);
-      }
+    acquire(&channels[curChannelsDescriptor].lk);
+    while (channels[curChannelsDescriptor].alive)
+    {
       release(&channels[curChannelsDescriptor].lk);
+      curChannelsDescriptor++;
+      if (curChannelsDescriptor == NCHAN)
+      {
+        release(&channels_lock);
+        printf("Failed to find a slot for new channel\n");
+        return -1;
+      }
+      acquire(&channels[curChannelsDescriptor].lk);
+    }
+    release(&channels[curChannelsDescriptor].lk);
 
     channels[curChannelsDescriptor] = chan;
     channels[curChannelsDescriptor].cd = curChannelsDescriptor;
@@ -813,11 +813,12 @@ uint64 channel_put(int cd, int data)
     release(&channels[cd].lk);
     return -1;
   }
-  
-  while(*(channels[cd].data) != 0){
-    sleep(&channels[cd],&channels[cd].lk);
+
+  while (channels[cd].data && *(channels[cd].data) != 0)
+  {
+    sleep(&channels[cd], &channels[cd].lk);
   }
-  
+
   if (!channels[cd].alive)
   {
     release(&channels[cd].lk);
@@ -825,8 +826,8 @@ uint64 channel_put(int cd, int data)
   }
 
   *(channels[cd].data) = data;
-  wakeup(&channels[cd]);
   release(&channels[cd].lk);
+  wakeup(&channels[cd]);
 
   return 0;
 }
@@ -839,7 +840,7 @@ uint64 channel_take(int cd, int *data)
 
   if (cd < 0 || cd >= curChannelsDescriptor || !data)
   {
-    //printf("Something very wrong happened cd = %d\n", cd);
+    // printf("Something very wrong happened cd = %d\n", cd);
     release(&channels_lock);
     return -1;
   }
@@ -853,8 +854,9 @@ uint64 channel_take(int cd, int *data)
     return -1;
   }
 
-  while(*(channels[cd].data) == 0){
-    sleep(&channels[cd],&channels[cd].lk);
+  while (channels[cd].data && *(channels[cd].data) == 0)
+  {
+    sleep(&channels[cd], &channels[cd].lk);
   }
 
   if (!channels[cd].alive)
@@ -879,8 +881,8 @@ uint64 channel_take(int cd, int *data)
   // printf("Channel data after copyout: %d\n", *(chan.data));
 
   *(channels[cd].data) = 0;
-  wakeup(&channels[cd]);
   release(&channels[cd].lk);
+  wakeup(&channels[cd]);
 
   return 0;
 }
@@ -899,17 +901,20 @@ uint64 channel_destroy(int cd)
   if (!channels[cd].alive)
   {
     release(&channels_lock);
+    release(&channels[cd].lk);
     return -1;
   }
 
   channels[cd].alive = 0;
 
-  wakeup(&channels[cd]);
+  release(&channels[cd].lk);
 
-  //release(channels[cd].lk);
+  // release(channels[cd].lk);
 
   kfree(channels[cd].data);
   channels[cd].data = 0;
+
+  wakeup(&channels[cd]);
 
   curChannelsDescriptor = min(cd, curChannelsDescriptor);
 

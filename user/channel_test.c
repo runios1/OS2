@@ -17,7 +17,7 @@ int main(int argc, char *argv[])
             printf("Failed to put data in channel\n");
         }
 
-       // sleep(20);
+        // sleep(20);
 
         if (channel_put(cd, 43) < 0)
         {
@@ -39,7 +39,7 @@ int main(int argc, char *argv[])
     else
     {
         int data;
-       // sleep(20);
+        // sleep(20);
         if (channel_take(cd, &data) < 0)
         { // 42
             printf("Failed to take data from channel\n");
@@ -68,4 +68,7 @@ int main(int argc, char *argv[])
     exit(0);
 }
 
-// Tested: WWRRRD, WWDRRR, WRRWRD, WRRRWD
+// Tested: WRWDRR, WRWRDR
+// Testing:
+
+// The problem happens when the channel is destroyed before the 2nd process takes
