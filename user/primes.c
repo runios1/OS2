@@ -22,16 +22,16 @@ int checkerLogic(int checkerCD, int printerCD)
         if (!getIsAlive(printerCD))
         {
             channel_destroy(checkerCD);
-            printf("Checker PID:%d\n", getpid());
+            printf("Checker pid:%d\n", getpid());
             return 0;
         }
         if (channel_take(checkerCD, &num) == -1)
         {
-            printf("channel_take on checker chan failed\n");
+            // printf("channel_take on checker chan failed - happens argv[1] - 1 times each run\n");
         }
         if (num != 0 && checkPrime(num))
         {
-            while (channel_put(printerCD, num) == -1)
+            while (getIsAlive(printerCD) && channel_put(printerCD, num) == -1)
                 ;
         }
     }
@@ -49,7 +49,7 @@ int generatorLogic(int checkerCD)
         }
         else if (getIsAlive(checkerCD) == 0)
         {
-            //printf("Generator PID:%d\n", getpid());
+            printf("Generator pid:%d\n", getpid());
 
             return 0;
         }
@@ -71,11 +71,11 @@ int printerLogic(int printerCD)
         if (num != 0)
         {
             detected++;
-            //printf("%d\n", num);
+            printf("%d\n", num);
         }
     }
     channel_destroy(printerCD);
-    //printf("Printer PID:%d\n", getpid());
+    printf("Printer pid:%d\n", getpid());
 
     return 0;
 }
@@ -88,7 +88,17 @@ int main(int argc, char *argv[])
     while (1)
     {
         int checkerCD = channel_create();
+        if (checkerCD == -1)
+        {
+            printf("Error in checker channel create\n");
+            exit(1);
+        }
         int printerCD = channel_create();
+        if (printerCD == -1)
+        {
+            printf("Error in printer channel create\n");
+            exit(1);
+        }
 
         int generatorPID = fork();
 
