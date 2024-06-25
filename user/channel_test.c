@@ -12,8 +12,8 @@ int main(int argc, char *argv[])
     }
     if (fork() == 0)
     {
-        // sleep(20);
-
+        sleep(20);
+        printf("cd: %d\n", cd);
         if (channel_put(cd, 42) < 0)
         {
             printf("Failed to put data in channel\n");

@@ -394,15 +394,23 @@ void exit(int status)
     }
   }
 
-  acquire(&channels_lock);
+  acquire(&p->lock);
 
   for (int cd = 0; cd < NCHAN; cd++)
   {
-    if (channels[cd].alive && channels[cd].creatorpid == p->pid)
-      channel_destroy(cd);
-  }
 
-  release(&channels_lock);
+    acquire(&channels[cd].lk);
+    if (channels[cd].alive && channels[cd].creatorpid == p->pid)
+    {
+      release(&channels[cd].lk);
+      channel_destroy(cd);
+    }
+    else
+    {
+      release(&channels[cd].lk);
+    }
+  }
+  release(&p->lock);
 
   begin_op();
   iput(p->cwd);
@@ -640,11 +648,21 @@ int kill(int pid)
 
   for (int cd = 0; cd < NCHAN; cd++)
   {
+    acquire(&channels[cd].lk);
     if (channels[cd].alive && channels[cd].creatorpid == pid)
+    {
+      release(&channels[cd].lk);
       channel_destroy(cd);
+    }
+    else
+    {
+      printf("In else\n");
+      release(&channels[cd].lk);
+    }
   }
-
+  printf("after for\n");
   release(&channels_lock);
+  printf("after after for\n");
 
   for (p = proc; p < &proc[NPROC]; p++)
   {
@@ -899,7 +917,12 @@ uint64 channel_take(int cd, int *data)
 
 uint64 channel_destroy(int cd)
 {
-  acquire(&channels_lock);
+  int isHolding = 0;
+  if (holding(&channels_lock))
+    isHolding = 1;
+  else
+    acquire(&channels_lock);
+
   if (cd < 0 || cd >= curChannelsDescriptor)
   {
     release(&channels_lock);
@@ -928,7 +951,8 @@ uint64 channel_destroy(int cd)
 
   curChannelsDescriptor = min(cd, curChannelsDescriptor);
 
-  release(&channels_lock);
+  if (!isHolding)
+    release(&channels_lock);
   // printf("channels[cd].alive = %d\n",  channels[cd].alive);
   // printf("cd = %d\n",  cd);
   return 0;
