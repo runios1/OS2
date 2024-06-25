@@ -862,21 +862,25 @@ uint64 channel_take(int cd, int *data)
 
   acquire(&channels_lock);
 
-  if (cd < 0 || !data)
+  if (cd < 0)
   {
-    printf("Something very wrong happened cd = %d curChannelsDescriptor = %d\n", cd, curChannelsDescriptor);
-    if (!data)
-      printf("Sent null pointer as data to take\n");
+    printf("Channel take got negative cd\n");
     release(&channels_lock);
     return -1;
   }
+  if (!data)
+  {
+    printf("Got null pointer as data to take\n");
+    release(&channels_lock);
+    return -1;
+  }
+
   release(&channels_lock);
 
   acquire(&channels[cd].lk);
 
   if (!channels[cd].alive)
   {
-    printf("Channel_take - channel dead before sleep\n");
     release(&channels[cd].lk);
     return -1;
   }
@@ -888,14 +892,9 @@ uint64 channel_take(int cd, int *data)
 
   if (!channels[cd].alive)
   {
-    // printf("Channel_take - channel dead after sleep\n");
     release(&channels[cd].lk);
     return -1;
   }
-
-  // printf("Channel data before copyout: %d\n", *(chan.data));
-
-  // printf("The data pointer points to: %p\n Trying to write: %d bytes\n", chan.data, sizeof(*(chan.data)));
 
   if (copyout(p->pagetable, (uint64)data, (char *)channels[cd].data, sizeof(*(channels[cd].data))) < 0)
   {
@@ -903,10 +902,6 @@ uint64 channel_take(int cd, int *data)
     release(&channels[cd].lk);
     return -1;
   }
-
-  // printf("data address: %p\n", data);
-
-  // printf("Channel data after copyout: %d\n", *(chan.data));
 
   *(channels[cd].data) = 0;
   release(&channels[cd].lk);
@@ -942,8 +937,6 @@ uint64 channel_destroy(int cd)
 
   release(&channels[cd].lk);
 
-  // release(channels[cd].lk);
-
   kfree(channels[cd].data);
   channels[cd].data = 0;
 
@@ -953,8 +946,6 @@ uint64 channel_destroy(int cd)
 
   if (!isHolding)
     release(&channels_lock);
-  // printf("channels[cd].alive = %d\n",  channels[cd].alive);
-  // printf("cd = %d\n",  cd);
   return 0;
 }
 
