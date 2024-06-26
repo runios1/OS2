@@ -61,7 +61,7 @@ void chan_init(void)
     channels[i].data = 0;
     channels[i].alive = 0;
     channels[i].creatorpid = 0;
-    channels[i].isFree = 1;
+    channels[i].isDataFree = 1;
   }
   curChannelsDescriptor = 0;
   initlock(&channels_lock, "channels");
@@ -656,13 +656,10 @@ int kill(int pid)
     }
     else
     {
-      printf("In else\n");
       release(&channels[cd].lk);
     }
   }
-  printf("after for\n");
   release(&channels_lock);
-  printf("after after for\n");
 
   for (p = proc; p < &proc[NPROC]; p++)
   {
@@ -777,7 +774,7 @@ uint64 channel_create()
     return -1;
   }
 
-  *chan.data = 0;
+  chan.isDataFree = 1;
 
   chan.alive = 1;
 
@@ -838,7 +835,7 @@ uint64 channel_put(int cd, int data)
     return -1;
   }
 
-  while (channels[cd].data && *(channels[cd].data) != 0)
+  while (channels[cd].alive && !channels[cd].isDataFree)
   {
     sleep(&channels[cd], &channels[cd].lk);
   }
@@ -850,6 +847,7 @@ uint64 channel_put(int cd, int data)
   }
 
   *(channels[cd].data) = data;
+  channels[cd].isDataFree = 0;
   release(&channels[cd].lk);
   wakeup(&channels[cd]);
 
@@ -885,7 +883,7 @@ uint64 channel_take(int cd, int *data)
     return -1;
   }
 
-  while (channels[cd].data && *(channels[cd].data) == 0)
+  while (channels[cd].alive && channels[cd].isDataFree)
   {
     sleep(&channels[cd], &channels[cd].lk);
   }
@@ -903,7 +901,7 @@ uint64 channel_take(int cd, int *data)
     return -1;
   }
 
-  *(channels[cd].data) = 0;
+  channels[cd].isDataFree = 1;
   release(&channels[cd].lk);
   wakeup(&channels[cd]);
 

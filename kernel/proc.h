@@ -126,6 +126,6 @@ struct channel
   struct spinlock lk;
   int *data;
   int alive;
-  int isFree;
+  int isDataFree;
   int creatorpid;
 };

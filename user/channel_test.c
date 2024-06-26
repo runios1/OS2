@@ -12,22 +12,16 @@ int main(int argc, char *argv[])
     }
     if (fork() == 0)
     {
-        sleep(20);
-        printf("cd: %d\n", cd);
         if (channel_put(cd, 42) < 0)
         {
             printf("Failed to put data in channel\n");
+            exit(1);
         }
-
-        // sleep(20);
 
         if (channel_put(cd, 43) < 0)
         {
             printf("Failed to put data in channel\n");
         } // Sleeps until cleared
-        // Handle error
-
-        // sleep(20);
 
         if (channel_destroy(cd) < 0)
         {
@@ -41,7 +35,6 @@ int main(int argc, char *argv[])
     else
     {
         int data;
-        // sleep(20);
         if (channel_take(cd, &data) < 0)
         { // 42
             printf("Failed to take data from channel\n");
@@ -64,7 +57,6 @@ int main(int argc, char *argv[])
         }
 
         printf("Data:%d\n ", data);
-        wait(0); // Sleep until child destroys channel
         // Handle error
     }
     exit(0);

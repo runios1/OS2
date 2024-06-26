@@ -27,12 +27,11 @@ int checkerLogic(int checkerCD, int printerCD)
         }
         if (channel_take(checkerCD, &num) == -1)
         {
-            // printf("channel_take on checker chan failed - happens argv[1] - 1 times each run\n");
+            // printf("channel_take on checker chan failed - happens up to argv[1] - 1 times each run\n");
         }
-        if (num != 0 && checkPrime(num))
+        if (checkPrime(num) && getIsAlive(printerCD))
         {
-            while (getIsAlive(printerCD) && channel_put(printerCD, num) == -1)
-                ;
+            channel_put(printerCD, num);
         }
     }
     return 0;
@@ -68,11 +67,8 @@ int printerLogic(int printerCD)
             printf("channel_take on printer chan failed\n");
             return 1;
         }
-        if (num != 0)
-        {
-            detected++;
-            printf("%d\n", num);
-        }
+        detected++;
+        printf("%d\n", num);
     }
     channel_destroy(printerCD);
     printf("Printer pid:%d\n", getpid());
